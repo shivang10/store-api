@@ -3,25 +3,38 @@ const supportedOperators = require("../utils/operators");
 
 const getAllProductsStatic = async (req, res) => {
     const products = await Product.find({
-        name: "vase table",
+        title: "vase table",
     });
     res.status(200).json({msg: products, nbHits: products.length});
 }
 
 const getAllProducts = async (req, res) => {
     const {
-        featured, company, name, sort, price, rating, page, limitBy = 10
+        brand, title, sort, price, rating, page = 1,
+        limitBy = 10, category, stock
     } = req.query;
     let pipeline = []
     const queryObject = {}
-    if (featured) {
-        queryObject.featured = featured === "true";
+
+    if (brand) {
+        queryObject.brand = brand;
     }
-    if (company) {
-        queryObject.company = company;
+    if (title) {
+        queryObject.title = title;
     }
-    if (name) {
-        queryObject.name = name;
+
+    if (category) {
+        queryObject.category = category
+    }
+
+    if (stock) {
+        const operator = stock.replace(/[^A-Za-z]/g, '');
+        const value = stock.replace(/^\D+/g, '');
+        if (operator in supportedOperators) {
+            queryObject.stock = {
+                [supportedOperators[operator]]: Number(value)
+            }
+        }
     }
 
     if (price) {
@@ -64,33 +77,25 @@ const getAllProducts = async (req, res) => {
         pipeline.push(d);
     }
 
-    if (page && page > 1) {
-        const pagination = {
-            '$facet': {
-                metadata: [
-                    {$count: "total"},
-                    {$addFields: {page: Number(page)}}
-                ],
-                data: [
-                    {$skip: (page - 1) * Number(limitBy)},
-                    {$limit: Number(limitBy)}
-                ]
-            }
+    const pagination = {
+        '$facet': {
+            metadata: [
+                {$count: "total"},
+                {$addFields: {page: Number(page)}}
+            ],
+            data: [
+                {$skip: (page - 1) * Number(limitBy)},
+                {$limit: Number(limitBy)}
+            ]
         }
-        pipeline.push(pagination)
     }
+    pipeline.push(pagination)
     let finalProducts;
 
-    if (pipeline.length === 0) {
-        finalProducts = await Product.find();
-
-    } else {
-        const products = await Product.aggregate(pipeline);
-        finalProducts = products
-
-        if ("metadata" in products[0] && "data" in products[0]) {
-            finalProducts = products[0]["data"]
-        }
+    const products = await Product.aggregate(pipeline);
+    finalProducts = products
+    if ("metadata" in products[0] && "data" in products[0]) {
+        finalProducts = products[0]["data"]
     }
 
     res.status(200).json({products: finalProducts, nbHits: finalProducts.length});
