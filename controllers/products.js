@@ -16,6 +16,32 @@ const getAllProducts = async (req, res) => {
     let pipeline = []
     const queryObject = {}
 
+    if (fieldsRequired) {
+        const fields = Buffer.from(fieldsRequired, "base64").toString();
+        const parsedValue = JSON.parse(fields);
+        let fieldsObj = {}
+        parsedValue["fields"].forEach((obj) => {
+            fieldsObj[obj] = 1
+        })
+        fieldsObj = {
+            $project: fieldsObj
+        };
+        pipeline.push(fieldsObj)
+    }
+
+    if (sort) {
+        const sortVal = Buffer.from(sort, 'base64').toString();
+        const parsedValue = JSON.parse(sortVal);
+        const field = parsedValue["field"];
+        const sortOrder = parsedValue["order"];
+        const d = {
+            $sort: {
+                [field]: sortOrder
+            }
+        }
+        pipeline.push(d);
+    }
+
     if (brand) {
         queryObject.brand = brand;
     }
@@ -62,32 +88,6 @@ const getAllProducts = async (req, res) => {
         pipeline.push({
             $match: queryObject
         });
-    }
-
-    if (sort) {
-        const sortVal = Buffer.from(sort, 'base64').toString();
-        const parsedValue = JSON.parse(sortVal);
-        const field = parsedValue["field"];
-        const sortOrder = parsedValue["order"];
-        const d = {
-            $sort: {
-                [field]: sortOrder
-            }
-        }
-        pipeline.push(d);
-    }
-
-    if (fieldsRequired) {
-        const fields = Buffer.from(fieldsRequired, "base64").toString();
-        const parsedValue = JSON.parse(fields);
-        let fieldsObj = {}
-        parsedValue["fields"].forEach((obj) => {
-            fieldsObj[obj] = 1
-        })
-        fieldsObj = {
-            $project: fieldsObj
-        };
-        pipeline.push(fieldsObj)
     }
 
     const pagination = {
