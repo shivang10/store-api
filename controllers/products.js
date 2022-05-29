@@ -11,7 +11,7 @@ const getAllProductsStatic = async (req, res) => {
 const getAllProducts = async (req, res) => {
     const {
         brand, title, sort, price, rating, page = 1,
-        limitBy = 10, category, stock
+        limitBy = 10, category, stock, fieldsRequired
     } = req.query;
     let pipeline = []
     const queryObject = {}
@@ -75,6 +75,19 @@ const getAllProducts = async (req, res) => {
             }
         }
         pipeline.push(d);
+    }
+
+    if (fieldsRequired) {
+        const fields = Buffer.from(fieldsRequired, "base64").toString();
+        const parsedValue = JSON.parse(fields);
+        let fieldsObj = {}
+        parsedValue["fields"].forEach((obj) => {
+            fieldsObj[obj] = 1
+        })
+        fieldsObj = {
+            $project: fieldsObj
+        };
+        pipeline.push(fieldsObj)
     }
 
     const pagination = {
